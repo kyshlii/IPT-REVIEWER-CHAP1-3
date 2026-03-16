@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reviewer Game</title>
+  <style>
+    :root{
+      --sage:#bcc8b4;
+      --sage-light:#dce7d6;
+      --sage-soft:#eef5ea;
+      --panel:rgba(255,255,255,.88);
+      --accent:#5d7f65;
+      --accent-dark:#426049;
+      --text:#203126;
+      --good:#2f7d4a;
+      --bad:#ad4d4d;
+      --shadow:0 12px 28px rgba(41,63,46,.15);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,.35), transparent 30%),
+        linear-gradient(180deg,var(--sage-light),var(--sage));
+      min-height:100vh;
+    }
+    .wrap{width:min(1120px,94vw);margin:22px auto 40px}
+    .hero,.card{
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.65);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(8px);
+    }
+    .hero{padding:24px;margin-bottom:18px}
+    .hero h1{margin:0 0 10px;color:var(--accent-dark)}
+    .hero p{margin:0;line-height:1.6}
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:18px}
+    @media(max-width:920px){.layout{grid-template-columns:1fr}}
+    .card{padding:18px}
+    .chapter-btn{
+      width:100%;
+      text-align:left;
+      border:none;
+      border-radius:14px;
+      background:var(--sage-soft);
+      padding:14px 15px;
+      margin-bottom:10px;
+      cursor:pointer;
+      font-weight:700;
+      color:var(--text);
+      transition:.18s ease;
+    }
+    .chapter-btn:hover,.chapter-btn.active{
+      background:var(--accent);
+      color:#fff;
+      transform:translateY(-1px);
+    }
+    .muted{opacity:.85;line-height:1.55}
+    .small{font-size:.95rem}
+    .tags,.actions{display:flex;flex-wrap:wrap;gap:10px}
+    .tags{margin:12px 0 16px}
+    .tag{
+      background:#e2ecda;
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:700;
+    }
+    button{
+      border:none;
+      border-radius:14px;
+      padding:12px 16px;
+      font-size:1rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+    button:hover{transform:translateY(-1px)}
+    .primary{background:var(--accent);color:#fff}
+    .secondary{background:#e5eddc;color:var(--text)}
+    .hidden{display:none!important}
+    .topbar{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+      margin-bottom:16px;
+    }
+    @media(max-width:760px){.topbar{grid-template-columns:repeat(2,1fr)}}
+    .stat{
+      background:#f5f9f1;
+      border-radius:16px;
+      padding:12px;
+      text-align:center;
+      font-weight:700;
+    }
+    .timerbar{
+      height:14px;
+      background:#e5ecdf;
+      border-radius:999px;
+      overflow:hidden;
+      margin:8px 0 18px;
+    }
+    .timerfill{
+      height:100%;
+      width:100%;
+      background:linear-gradient(90deg,#79a981,#c4dc98);
+      transition:width 1s linear;
+    }
+    .question-title{
+      font-size:1.02rem;
+      font-weight:700;
+      color:var(--accent-dark);
+      margin-bottom:8px;
+    }
+    .question-text{
+      font-size:clamp(1.03rem,2vw,1.25rem);
+      line-height:1.7;
+      margin:12px 0 16px;
+      font-weight:700;
+      white-space:pre-wrap;
+    }
+    .choices{display:grid;gap:12px}
+    .choice{
+      width:100%;
+      text-align:left;
+      background:var(--sage-soft);
+      border:2px solid transparent;
+      border-radius:16px;
+      padding:14px;
+      color:var(--text);
+      line-height:1.5;
+    }
+    .choice:hover:not(:disabled){border-color:#91ae95}
+    .choice.correct{background:#e0f3e5;border-color:var(--good);color:#184526}
+    .choice.wrong{background:#fae3e3;border-color:var(--bad);color:#6a2323}
+    .result{min-height:24px;margin-top:16px;font-weight:700}
+    .endbox{
+      text-align:center;
+      padding:18px;
+      background:#f7fbf4;
+      border-radius:18px;
+      margin-top:12px;
+    }
+    .badge{
+      display:inline-block;
+      padding:10px 14px;
+      border-radius:999px;
+      background:#e2ecda;
+      font-weight:700;
+      margin:4px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>Interactive Reviewer Game</h1>
+    <p>Reviewer, 30 Questions Per Chapter, 30-second Timer</p>
+  </section>
+
+  <div class="layout">
+    <aside class="card">
+      <h2 style="margin-top:0;color:var(--accent-dark);">Chapters</h2>
+      <div id="chapterButtons"></div>
+      <p class="muted small">This version keeps only the important lesson topics for Chapters 1, 1.2, 2, and 3.</p>
+    </aside>
+
+    <main class="card">
+      <section id="homeView">
+        <h2 id="chapterTitle" style="margin-top:0;color:var(--accent-dark);">Select a chapter</h2>
+        <p id="chapterDesc" class="muted">Your chapter details will appear here.</p>
+
+        <div class="tags">
+          <div class="tag">Questions: 30</div>
+          <div class="tag">Timer: 30 seconds</div>
+          <div class="tag">Sound: On</div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="startBtn" disabled>Start Quiz</button>
+        </div>
+      </section>
+
+      <section id="quizView" class="hidden">
+        <div class="topbar">
+          <div class="stat" id="statChapter">Chapter</div>
+          <div class="stat" id="statQuestion">Question 1 / 30</div>
+          <div class="stat" id="statScore">Score: 0</div>
+          <div class="stat" id="statTimer">30s</div>
+        </div>
+
+        <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
+
+        <div class="question-title" id="questionType">Exam Question</div>
+        <div class="question-text" id="questionText"></div>
+        <div class="choices" id="choicesBox"></div>
+        <div class="result" id="resultBox"></div>
+
+        <div class="actions" style="margin-top:16px;">
+          <button class="secondary" id="quitBtn">Back to Chapter</button>
+        </div>
+      </section>
+
+      <section id="endView" class="hidden">
+        <div class="endbox">
+          <h2 style="margin-top:0;color:var(--accent-dark);">Chapter Finished</h2>
+          <div id="finalChapter" class="badge"></div>
+          <div id="finalScore" class="badge"></div>
+          <div id="finalPercent" class="badge"></div>
+          <p id="finalMessage" style="font-size:1.05rem;line-height:1.6;"></p>
+          <div class="actions" style="justify-content:center;">
+            <button class="primary" id="retryBtn">Play Again</button>
+            <button class="secondary" id="backHomeBtn">Choose Another Chapter</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const LESSONS = {
+  "CHAPTER 1": [
+    {
+      title: "Git",
+      text: "is a free and open-source version control system used to handle small to very large projects efficiently."
+    },
+    {
+      title: "2005",
+      text: "What year was the Git created?"
+    },
+    {
+      title: "Goals of Git",
+      text: "Git was designed for speed, simple design, support for non-linear development, distributed work, and the ability to handle large projects efficiently."
+    },
+    {
+      title: "Version Control System",
+      text: "helps track changes in files, compare versions, recover old versions, and identify who made a change and when."
+    },
+    {
+      title: "Repository",
+      text: "is a collection of project files and their history, including the order of changes, descriptions, and the person responsible for each change."
+    },
+    {
+      title: "Commit",
+      text: " is the act of telling the version control system that a change is finished and should be saved as a version."
+    },
+    {
+      title: "Why use Git",
+      text: "Git is useful because it supports collaboration, works efficiently on large projects, and allows distributed version control."
+    },
+    {
+      title: "Distributed Version Control",
+      text: "Git is ________, meaning each developer has a full local repository and can work even without a network connection."
+    },
+    {
+      title: "GitHub",
+      text: "is a popular website for sharing Git repositories with collaborators or the public."
+    },
+    {
+      title: "Checksums",
+      text: "Git uses _______ to secure data and detect any corruption or changes made without Git knowing."
+    },
+    {
+      title: "Snapshots",
+      text: "In Git, data is stored as a series of _____ rather than file-based cahnges."
+    },
+    {
+      title: "Local Operations",
+      text: "Most Git operations are fast because they only need local files and resources."
+    },
+    {
+      title: "Offline Work",
+      text: "Git allows users to continue working and committing changes even when offline."
+    },
+    {
+      title: "Git Integrity",
+      text: "Everything in Git is checksummed before being stored, making it hard to change file contents without Git detecting it."
+    },
+    {
+      title: "Three States of Git",
+      text: "Files in Git can be committed, modified, or staged depending on their current condition in the workflow."
+    },
+    {
+      title: "Git Directory",
+      text: "stores metadata and the object database for the project."
+    },
+    {
+      title: "Working Directory",
+      text: "is the checked-out version of one project version where files are edited."
+    },
+    {
+      title: "Linus Torvalds",
+      text: "The creator of Git and Linus is _______"
+    },
+    {
+      title: "SHA-1",
+      text: "The hashing algorithm used by Git is ______."
+    },
+    {
+      title: "Hex",
+      text: "The 40-character string generated by Git is composed of ____ characters"
+    },
+    {
+      title: "DevOps",
+      text: "Git is commonly used as a _____ tool for source code management"
+    },
+    {
+      title: "Modified",
+      text: "the state where files are changed but not yet committed is called ______"
+    },
+    {
+      title: "Commited",
+      text: "the state where data is safely stored in the local database is called  the _________"
+    },
+    {
+      title: "Bitkeeper",
+      text: "Git was developed after the free status of ______ was revoked"
+    },
+    {
+      title: "Staged",
+      text: "the state where files marked to be included in the next commit is called _______"
+    },
+    {
+      title: "Staging Area",
+      text: " stores information about what will go into the next commit."
+    }
+  ],
+
+  "CHAPTER 1.2": [
+    {
+      title: "Programming",
+      text: "Programming is the process of translating human requirements into source code that a computer can run."
+    },
+    {
+      title: "Version Control",
+      text: "Version control manages change in source files and is an important part of software development."
+    },
+    {
+      title: "Git Repository",
+      text: "A repository stores files and the history of changes made to those files."
+    },
+    {
+      title: "git init",
+      text: "command initializes a folder as a Git repository."
+    },
+    {
+      title: "Master Branch",
+      text: "After initializing a repository, Git places you on the default branch called ________ in this lesson."
+    },
+    {
+      title: ".git Folder",
+      text: "The hidden .git folder contains the data that makes the directory a Git repository."
+    },
+    {
+      title: "Untracked File",
+      text: "A new file detected by Git but not yet managed by Git is called an untracked file."
+    },
+    {
+      title: "File States in Git",
+      text: "Files in Git can be untracked, tracked, unstaged, staged, or deleted."
+    },
+    {
+      title: "git add",
+      text: "The git add command stages files so they become ready for commit."
+    },
+    {
+      title: "git add dot",
+      text: "The command git add dot stages all changed files in the current directory."
+    },
+    {
+      title: "git commit",
+      text: "The git commit command saves staged changes to the current branch together with a commit message."
+    },
+    {
+      title: "git log",
+      text: "The git log command displays the commit history of the repository."
+    },
+    {
+      title: "Branching",
+      text: "Branching allows isolated development so multiple features can be worked on separately."
+    },
+    {
+      title: "Feature Branch",
+      text: "A feature branch is a copy of the main branch used to develop a new feature separately."
+    },
+    {
+      title: "git branch",
+      text: "The git branch command shows branches and can be used to create new branches."
+    },
+    {
+      title: "Switching Branches",
+      text: "Git allows developers to switch between branches to work on different lines of development."
+    },
+    {
+      title: "Branch Isolation",
+      text: "Changes made in one branch do not affect another branch until they are merged."
+    },
+    {
+      title: "git checkout",
+      text: "The git checkout command is used to switch between branches."
+    },
+    {
+      title: "git merge",
+      text: "The git merge command combines changes from one branch into another."
+    },
+    {
+      title: "Deleting Branches",
+      text: "After a branch has been merged, it is usually removed because it is no longer needed."
+    }
+  ],
+
+  "CHAPTER 2": [
+    {
+      title: "Assembla",
+      text: "a workspaces platform with issue management, time tracking, and collaboration tools like wikis and its own messaging system."
+    },
+    {
+      title: "GitHub",
+      text: " is a site for online storage of Git repositories and is widely used for open source and private projects."
+    },
+    {
+      title: "GitLab",
+      text: "is a platform for code collaboration that can be self-hosted or used online."
+    },
+    {
+      title: "Plan.io",
+      text: "is more than a hosting service because it also provides project management tools."
+    },
+    {
+      title: "GitHub Flow",
+      text: "is a lightweight branch-based workflow that supports regular deployment."
+    },
+    {
+      title: "Codebase",
+      text: "one of the few platforms that supports Git, Subversion, and Mercurial."
+    },
+    {
+      title: "Beanstalk",
+      text: "is a great choice for businesses."
+    },
+    {
+      title: "Branching",
+      text: "is a core concept in Git."
+    },
+    {
+      title: "Helix",
+      text: "complete software collaboration system with issue tracking."
+    },
+    {
+      title: "Perforce",
+      text: "is one of the heavyweights in the business with a long history and extensive experience."
+    },
+    {
+      title: "Unfuddle",
+      text: "comes with both wikie and its own message system."
+    },
+    {
+      title: "CloudForge",
+      text: "platforms for developers, offering development tools as well as integrations wth JIRA, Basecamp, and others."
+    },
+    { 
+      title: "Commits",
+      text: "records the addition, deletion, or editing of files on a branch."
+    },
+    {
+      title: "Pull Request",
+      text: "discussion and review about changes before they are merged."
+    },
+    {
+      title: "Deploy",
+      text: "after review and testing, changes may be _____ to verify them in production."
+    },
+    {
+      title: "Merge",
+      text: "Once verified, the approved changes are ______ into the master branch."
+    },
+    {
+      title: "BitBucket",
+      text: "coming from Atlassian, one of the giants in the industry.Therefore integrations to other Atlassian products like JIRA issue tracker are seamless  "
+    },
+    {
+      title: "Deleting a Branch on GitHub",
+      text: "if the user has access and no pull request depends on it."
+    },
+    {
+      title: "RhodeCode",
+      text: "sophisticated code review and approval system."
+    },
+    {
+      title: "Commit Message",
+      text: "should be short and meaningful and describe the change made."
+    },
+    {
+      title: "Clone",
+      text: "grab a complete copy of another user's repository."
+    },
+    {
+      title: "Fetch",
+      text: "retrieves new work done by other people."
+    },
+    {
+      title: "Merge",
+      text: "combines your local changes with changes made by others."
+    },
+    {
+      title: "Pull",
+      text: "is a shortcut for fetch followed by merge."
+    }
+  ],
+
+  "CHAPTER 3": [
+    {
+      title: "Virtual Machine",
+      text: "is a virtualized instance of a computer that can run applications and operating systems."
+    },
+    {
+      title: "Virtualization",
+      text: "is a technology that allows multiple virtual machines to run on the same hardware machine."
+    },
+    {
+      title: "Hypervisor",
+      text: "creates and manages virtual machines by virtualizing hardware resources."
+    },
+    {
+      title: "Host",
+      text: "underlying hardware system."
+    },
+    {
+      title: "Guest",
+      text: "operating system running on VMM."
+    },
+    {
+      title: "Virtual Machine Manager",
+      text: "can perform almost of the same functions as a computer."
+    },
+
+    {
+      title: "Instruction Set Architecture Level",
+      text: "virtualization is done by emulating one ISA using the host machine ISA."
+    },
+    {
+      title: "Hardware Abstraction Level",
+      text: "is performed directly on top of bare hardware and creates a virtual hardware environment for virtual machines."
+    },
+    {
+      title: "Operating System Level",
+      text: "virtualization creates isolated containers on a single physical server."
+    },
+    {
+      title: "Library Support Level",
+      text: "virtualization works by controlling communication between applications and the rest of the system through API hooks."
+    },
+    {
+      title: "User Application Level",
+      text: "virtualization makes an application behave like a virtual machine."
+    },
+    {
+      title: "VirtualBox",
+      text: "is a tool used for virtualization and for creating and managing virtual machines."
+    }
+  ]
+};
+
+const chapterDescriptions = {
+  "CHAPTER 1": "Git basics, repositories, commits, snapshots, integrity, local operations, and Git workflow.",
+  "CHAPTER 1.2": "Git local workflow, git commands, file states, branching, checkout, merge, and branch isolation.",
+  "CHAPTER 2": "Important Git hosting services like Assembla, GitHub, GitLab, GitHub Flow, pull requests, and clone/fetch/merge/pull.",
+  "CHAPTER 3": "Virtual machines, virtualization, hypervisors, abstraction levels, and VirtualBox."
+};
+
+const chapterButtons = document.getElementById("chapterButtons");
+const chapterTitle = document.getElementById("chapterTitle");
+const chapterDesc = document.getElementById("chapterDesc");
+const startBtn = document.getElementById("startBtn");
+
+const homeView = document.getElementById("homeView");
+const quizView = document.getElementById("quizView");
+const endView = document.getElementById("endView");
+
+const statChapter = document.getElementById("statChapter");
+const statQuestion = document.getElementById("statQuestion");
+const statScore = document.getElementById("statScore");
+const statTimer = document.getElementById("statTimer");
+const timerFill = document.getElementById("timerFill");
+
+const questionText = document.getElementById("questionText");
+const questionType = document.getElementById("questionType");
+const choicesBox = document.getElementById("choicesBox");
+const resultBox = document.getElementById("resultBox");
+
+let currentChapter = null;
+let questions = [];
+let currentIndex = 0;
+let score = 0;
+let timeLeft = 30;
+let timer = null;
+let locked = false;
+
+function shuffle(arr){
+  const copy = [...arr];
+  for(let i = copy.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function renderButtons(){
+  chapterButtons.innerHTML = "";
+  Object.keys(LESSONS).forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "chapter-btn" + (currentChapter === name ? " active" : "");
+    btn.textContent = name;
+    btn.onclick = () => selectChapter(name);
+    chapterButtons.appendChild(btn);
+  });
+}
+
+function selectChapter(name){
+  currentChapter = name;
+  renderButtons();
+  chapterTitle.textContent = name;
+  chapterDesc.textContent = chapterDescriptions[name];
+  startBtn.disabled = false;
+  showView(homeView);
+}
+
+function buildQuestionFromSlide(item, chapterName, idx, allTitles){
+  const correct = item.title;
+  const wrong = shuffle(allTitles.filter(t => t !== correct)).slice(0, 3);
+  const options = shuffle([correct, ...wrong]);
+  const text = item.text.replace(/\s+/g, " ").trim();
+
+  const stems = [
+    `Which concept is described below?\n\n"${text}"`,
+    `Based on the lesson, what is the correct answer?\n\n"${text}"`,
+    `Read the statement carefully. Which topic does it refer to?\n\n"${text}"`,
+    `Which term best matches this description?\n\n"${text}"`,
+    `From ${chapterName}, identify the correct concept.\n\n"${text}"`,
+    `What is the best answer for this exam item?\n\n"${text}"`,
+    `Which topic is explained by the statement below?\n\n"${text}"`,
+    `Choose the correct answer based on the lesson content.\n\n"${text}"`
+  ];
+
+  return {
+    question: stems[idx % stems.length],
+    correct,
+    options
+  };
+}
+
+function makeQuestionBank(chapterName){
+  const items = LESSONS[chapterName];
+  const allTitles = items.map(i => i.title);
+  const bank = [];
+
+  items.forEach((item, idx) => {
+    bank.push(buildQuestionFromSlide(item, chapterName, idx, allTitles));
+  });
+
+  let i = 0;
+  while(bank.length < 30){
+    const item = items[i % items.length];
+    bank.push(buildQuestionFromSlide(item, chapterName, bank.length, allTitles));
+    i++;
+  }
+
+  return shuffle(bank).slice(0, 30);
+}
+
+function showView(view){
+  homeView.classList.add("hidden");
+  quizView.classList.add("hidden");
+  endView.classList.add("hidden");
+  view.classList.remove("hidden");
+}
+
+function startQuiz(){
+  if(!currentChapter) return;
+  questions = makeQuestionBank(currentChapter);
+  currentIndex = 0;
+  score = 0;
+  showView(quizView);
+  renderQuestion();
+  startGardenTheme();
+}
+
+function renderQuestion(){
+  clearInterval(timer);
+  locked = false;
+  resultBox.textContent = "";
+  timeLeft = 30;
+
+  const q = questions[currentIndex];
+  statChapter.textContent = currentChapter;
+  statQuestion.textContent = `Question ${currentIndex + 1} / 30`;
+  statScore.textContent = `Score: ${score}`;
+  statTimer.textContent = `${timeLeft}s`;
+  timerFill.style.width = "100%";
+
+  questionType.textContent = "Exam Question";
+  questionText.innerText = q.question;
+
+  choicesBox.innerHTML = "";
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    const letters = ["A", "B", "C", "D"];
+    btn.textContent = `${letters[index]}. ${option}`;
+    btn.dataset.answer = option;
+    btn.onclick = () => answerQuestion(btn, option === q.correct, q.correct);
+    choicesBox.appendChild(btn);
+  });
+
+  timer = setInterval(() => {
+    timeLeft--;
+    statTimer.textContent = `${timeLeft}s`;
+    timerFill.style.width = `${(timeLeft / 30) * 100}%`;
+    if(timeLeft <= 0){
+      clearInterval(timer);
+      timeUp();
+    }
+  }, 1000);
+}
+
+function lockChoices(){
+  locked = true;
+  document.querySelectorAll(".choice").forEach(btn => btn.disabled = true);
+}
+
+function answerQuestion(button, isCorrect, correctAnswer){
+  if(locked) return;
+  lockChoices();
+  clearInterval(timer);
+
+  document.querySelectorAll(".choice").forEach(btn => {
+    if(btn.dataset.answer === correctAnswer) btn.classList.add("correct");
+  });
+
+  if(isCorrect){
+    score++;
+    button.classList.add("correct");
+    resultBox.textContent = "Correct!";
+    playCorrectSound();
+  }else{
+    button.classList.add("wrong");
+    resultBox.textContent = `Wrong. Correct answer: ${correctAnswer}`;
+    playWrongSound();
+  }
+
+  statScore.textContent = `Score: ${score}`;
+  setTimeout(nextQuestion, 1100);
+}
+
+function timeUp(){
+  if(locked) return;
+  lockChoices();
+  const q = questions[currentIndex];
+
+  document.querySelectorAll(".choice").forEach(btn => {
+    if(btn.dataset.answer === q.correct) btn.classList.add("correct");
+  });
+
+  resultBox.textContent = `Time's up! Correct answer: ${q.correct}`;
+  playTimeUpSound();
+  setTimeout(nextQuestion, 1300);
+}
+
+function nextQuestion(){
+  currentIndex++;
+  if(currentIndex >= questions.length){
+    finishQuiz();
+  }else{
+    renderQuestion();
+  }
+}
+
+function finishQuiz(){
+  clearInterval(timer);
+  stopGardenTheme();
+
+  const percent = Math.round((score / questions.length) * 100);
+  document.getElementById("finalChapter").textContent = currentChapter;
+  document.getElementById("finalScore").textContent = `Score: ${score} / ${questions.length}`;
+  document.getElementById("finalPercent").textContent = `${percent}%`;
+
+  let message = "Review again and try one more round.";
+  if(percent >= 90) message = "Excellent work. You reviewed the chapter very well.";
+  else if(percent >= 75) message = "Great job. You already understand many lesson points.";
+  else if(percent >= 60) message = "Good try. Keep practicing to remember more details.";
+
+  document.getElementById("finalMessage").textContent = message;
+  showView(endView);
+}
+
+startBtn.addEventListener("click", startQuiz);
+document.getElementById("quitBtn").addEventListener("click", () => {
+  clearInterval(timer);
+  stopGardenTheme();
+  showView(homeView);
+});
+document.getElementById("retryBtn").addEventListener("click", startQuiz);
+document.getElementById("backHomeBtn").addEventListener("click", () => {
+  stopGardenTheme();
+  showView(homeView);
+});
+
+let audioCtx = null;
+let bgLoop = null;
+
+function ensureAudio(){
+  if(!audioCtx){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return null;
+    audioCtx = new Ctx();
+  }
+  if(audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(freq, duration, type="triangle", volume=0.03, when=0){
+  const ctx = ensureAudio();
+  if(!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + when);
+  gain.gain.setValueAtTime(volume, ctx.currentTime + when);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + when + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(ctx.currentTime + when);
+  osc.stop(ctx.currentTime + when + duration);
+}
+
+function playCorrectSound(){
+  tone(523.25, 0.08, "triangle", 0.04, 0);
+  tone(659.25, 0.08, "triangle", 0.035, 0.08);
+  tone(783.99, 0.10, "triangle", 0.03, 0.16);
+}
+
+function playWrongSound(){
+  tone(220, 0.10, "sawtooth", 0.03, 0);
+  tone(196, 0.12, "sawtooth", 0.028, 0.08);
+  tone(174.61, 0.16, "sawtooth", 0.026, 0.18);
+}
+
+function playTimeUpSound(){
+  tone(392.00, 0.08, "square", 0.03, 0);
+  tone(349.23, 0.08, "square", 0.03, 0.08);
+  tone(311.13, 0.12, "square", 0.03, 0.16);
+}
+
+function startGardenTheme(){
+  const ctx = ensureAudio();
+  if(!ctx || bgLoop) return;
+
+  const melody = [
+    261.63, 329.63, 392.00, 329.63,
+    293.66, 349.23, 392.00, 440.00,
+    392.00, 349.23, 329.63, 293.66
+  ];
+
+  let i = 0;
+  bgLoop = setInterval(() => {
+    const base = melody[i % melody.length];
+    tone(base, 0.14, "triangle", 0.012, 0);
+    tone(base / 2, 0.10, "square", 0.006, 0.03);
+    if(i % 4 === 0) tone(base * 1.5, 0.08, "triangle", 0.006, 0.06);
+    i++;
+  }, 260);
+}
+
+function stopGardenTheme(){
+  if(bgLoop){
+    clearInterval(bgLoop);
+    bgLoop = null;
+  }
+}
+
+renderButtons();
+</script>
+</body>
+</html>
